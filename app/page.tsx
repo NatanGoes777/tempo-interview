@@ -1,95 +1,170 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import { 
+  Box, TextField, Button, Typography, Paper, IconButton, 
+  Dialog, DialogTitle, DialogContent, DialogActions 
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 
-type Task = {
+type Employee = {
   id: number;
-  title: string;
-  created_at: string;
+  name: string;
+  role: string;
 };
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+
+  // Estados para o Modal de Edição
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('');
 
   useEffect(() => {
-    fetchTasks();
+    fetchEmployees();
   }, []);
 
-  const fetchTasks = async () => {
-    try {
-      const res = await fetch('/api/tasks');
-      const data = await res.json();
-      setTasks(data);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-    } finally {
-      setLoading(false);
+  const fetchEmployees = async () => {
+    const res = await fetch('/api/employees');
+    const data = await res.json();
+    setEmployees(data);
+  };
+
+  // --- CREATE ---
+  const addEmployee = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!name || !role) return;
+
+    const res = await fetch('/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, role }),
+    });
+
+    if (res.ok) {
+      const newEmployee = await res.json();
+      setEmployees([newEmployee, ...employees]);
+      setName('');
+      setRole('');
     }
   };
 
-  const addTask = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+  // --- DELETE ---
+  const deleteEmployee = async (id: number) => {
+    const res = await fetch('/api/employees', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
 
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTaskTitle }),
-      });
+    if (res.ok) {
+      setEmployees(employees.filter((emp) => emp.id !== id));
+    }
+  };
 
-      if (res.ok) {
-        const newTask = await res.json();
-        setTasks([newTask, ...tasks]); // Adiciona a nova tarefa no topo da lista na tela
-        setNewTaskTitle(''); // Limpa o input
-      }
-    } catch (error) {
-      console.error('Error adding task:', error);
+  // --- UPDATE (Abre o Modal e seta os dados) ---
+  const openEditModal = (emp: Employee) => {
+    setEditId(emp.id);
+    setEditName(emp.name);
+    setEditRole(emp.role);
+    setEditOpen(true);
+  };
+
+  // --- UPDATE (Salva os dados no banco) ---
+  const saveEdit = async () => {
+    if (!editId) return;
+
+    const res = await fetch('/api/employees', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editId, name: editName, role: editRole }),
+    });
+
+    if (res.ok) {
+      // Atualiza a lista na tela sem precisar recarregar a página
+      setEmployees(employees.map(emp => 
+        emp.id === editId ? { ...emp, name: editName, role: editRole } : emp
+      ));
+      setEditOpen(false); // Fecha o modal
     }
   };
 
   return (
-    <main className="max-w-2xl mx-auto p-8 font-sans">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Tempo Tasks</h1>
+    <Box sx={{ maxWidth: 600, mx: 'auto', p: 4 }}>
+      <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
+        Team Directory
+      </Typography>
 
-      {/* Formulário de Adicionar */}
-      <form onSubmit={addTask} className="flex gap-4 mb-8">
-        <input
-          type="text"
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          placeholder="O que precisa ser feito?"
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 text-gray-900 shadow-sm"
+      {/* Formulário de Adicionar usando Paper do MUI */}
+      <Paper component="form" onSubmit={addEmployee} sx={{ p: 3, mb: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <TextField 
+          label="Employee Name" 
+          variant="outlined" 
+          value={name} 
+          onChange={(e) => setName(e.target.value)} 
+          required 
         />
-        <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors shadow-sm"
-        >
-          Add Task
-        </button>
-      </form>
+        <TextField 
+          label="Job Role (e.g. Designer)" 
+          variant="outlined" 
+          value={role} 
+          onChange={(e) => setRole(e.target.value)} 
+          required 
+        />
+        <Button type="submit" variant="contained" size="large">
+          Add Team Member
+        </Button>
+      </Paper>
 
-      {/* Lista de Tarefas */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        {loading ? (
-          <p className="p-4 text-gray-500 text-center">Carregando tarefas...</p>
-        ) : tasks.length === 0 ? (
-          <p className="p-4 text-gray-500 text-center">Nenhuma tarefa. Crie uma!</p>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {tasks.map((task) => (
-              <li key={task.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                <span className="text-gray-800 font-medium">{task.title}</span>
-                <span className="text-xs text-gray-400">
-                  {new Date(task.created_at).toLocaleDateString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+      {/* Lista de Funcionários */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {employees.map((emp) => (
+          <Paper key={emp.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">{emp.name}</Typography>
+              <Typography variant="body2" color="text.secondary">{emp.role}</Typography>
+            </Box>
+            <Box>
+              {/* Botão de Editar */}
+              <IconButton color="primary" onClick={() => openEditModal(emp)}>
+                <EditIcon />
+              </IconButton>
+              {/* Botão de Deletar */}
+              <IconButton color="error" onClick={() => deleteEmployee(emp.id)}>
+                <DeleteIcon />
+              </IconButton>
+            </Box>
+          </Paper>
+        ))}
+      </Box>
+
+      {/* Modal de Edição (Dialog do MUI) */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Edit Employee</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField 
+            label="Name" 
+            fullWidth 
+            value={editName} 
+            onChange={(e) => setEditName(e.target.value)} 
+          />
+          <TextField 
+            label="Role" 
+            fullWidth 
+            value={editRole} 
+            onChange={(e) => setEditRole(e.target.value)} 
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)} color="inherit">Cancel</Button>
+          <Button onClick={saveEdit} variant="contained" color="primary">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
