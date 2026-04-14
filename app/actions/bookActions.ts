@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '../../lib/supabase';
+import { createSupabaseServerClient } from '../../lib/supabase-server';
 
 export type Book = {
   id: number;
@@ -17,6 +17,7 @@ export type BookWithReviews = {
 
 // GET
 export async function getBooks(): Promise<Book[]> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('books')
     .select('*')
@@ -28,6 +29,7 @@ export async function getBooks(): Promise<Book[]> {
 
 // POST
 export async function createBook(title: string, author: string): Promise<Book> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('books')
     .insert([{ title, author }])
@@ -39,6 +41,7 @@ export async function createBook(title: string, author: string): Promise<Book> {
 
 // PUT
 export async function updateBook(id: number, title: string, author: string): Promise<Book> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('books')
     .update({ title, author })
@@ -51,6 +54,7 @@ export async function updateBook(id: number, title: string, author: string): Pro
 
 // DELETE
 export async function deleteBook(id: number): Promise<void> {
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from('books')
     .delete()
@@ -60,11 +64,12 @@ export async function deleteBook(id: number): Promise<void> {
 }
 
 export async function getBooksWithReviews(): Promise<BookWithReviews[]> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from('books')
     .select(`
       *,
-      reviews ( id, comment, rating ) 
+      reviews ( id, comment, rating )
     `)
     .order('id', { ascending: false });
 
