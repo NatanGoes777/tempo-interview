@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // React limpo, sem o FormEvent problemático
 import { 
   Box, TextField, Button, Typography, Paper, IconButton, 
   Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { Book, BookService } from './../services/bookService';
+
+// 1. Importamos as Server Actions diretamente!
+import { getBooks, createBook, updateBook, deleteBook, Book } from './actions/bookActions';
 
 export default function Home() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -26,7 +28,8 @@ export default function Home() {
 
   async function loadBooks() {
     try {
-      const data = await BookService.getAll();
+      // 2. Chama a Action direto, sem fetch, sem JSON!
+      const data = await getBooks(); 
       setBooks(data);
     } catch (error) {
       console.error(error);
@@ -38,29 +41,30 @@ export default function Home() {
     if (!title || !author) return;
 
     try {
-      const newBook = await BookService.create(title, author);
+      // 3. Chama a Action direto!
+      const newBook = await createBook(title, author);
       setBooks([newBook, ...books]);
       setTitle('');
       setAuthor('');
     } catch (error) {
       console.error(error);
     }
-  };
+  }
 
-  const deleteBook = async (id: number) => {
+  async function removeBook(id: number) {
     try {
-      await BookService.delete(id);
+      await deleteBook(id);
       setBooks(books.filter((b) => b.id !== id));
     } catch (error) {
       console.error(error);
     }
-  };
+  }
 
-  const saveEdit = async () => {
+  async function saveEdit() {
     if (!editId) return;
 
     try {
-      await BookService.update(editId, editTitle, editAuthor);
+      await updateBook(editId, editTitle, editAuthor);
       setBooks(books.map(b => 
         b.id === editId ? { ...b, title: editTitle, author: editAuthor } : b
       ));
@@ -68,7 +72,7 @@ export default function Home() {
     } catch (error) {
       console.error(error);
     }
-  };
+  }
 
   const openEditModal = (book: Book) => {
     setEditId(book.id);
