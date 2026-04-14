@@ -1,141 +1,123 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, TextField, Button, Typography, Paper, IconButton, 
   Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-
-type Employee = {
-  id: number;
-  name: string;
-  role: string;
-};
+import { Book, BookService } from './../services/bookService';
 
 export default function Home() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
 
   // Estados para o Modal de Edição
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editRole, setEditRole] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
 
   useEffect(() => {
-    fetchEmployees();
+    loadBooks();
   }, []);
 
-  const fetchEmployees = async () => {
-    const res = await fetch('/api/employees');
-    const data = await res.json();
-    setEmployees(data);
-  };
+  async function loadBooks() {
+    try {
+      const data = await BookService.getAll();
+      setBooks(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-  // --- CREATE ---
-  const addEmployee = async (e: FormEvent) => {
+  async function addBook(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!name || !role) return;
+    if (!title || !author) return;
 
-    const res = await fetch('/api/employees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, role }),
-    });
-
-    if (res.ok) {
-      const newEmployee = await res.json();
-      setEmployees([newEmployee, ...employees]);
-      setName('');
-      setRole('');
+    try {
+      const newBook = await BookService.create(title, author);
+      setBooks([newBook, ...books]);
+      setTitle('');
+      setAuthor('');
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  // --- DELETE ---
-  const deleteEmployee = async (id: number) => {
-    const res = await fetch('/api/employees', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-
-    if (res.ok) {
-      setEmployees(employees.filter((emp) => emp.id !== id));
+  const deleteBook = async (id: number) => {
+    try {
+      await BookService.delete(id);
+      setBooks(books.filter((b) => b.id !== id));
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  // --- UPDATE (Abre o Modal e seta os dados) ---
-  const openEditModal = (emp: Employee) => {
-    setEditId(emp.id);
-    setEditName(emp.name);
-    setEditRole(emp.role);
-    setEditOpen(true);
-  };
-
-  // --- UPDATE (Salva os dados no banco) ---
   const saveEdit = async () => {
     if (!editId) return;
 
-    const res = await fetch('/api/employees', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: editId, name: editName, role: editRole }),
-    });
-
-    if (res.ok) {
-      // Atualiza a lista na tela sem precisar recarregar a página
-      setEmployees(employees.map(emp => 
-        emp.id === editId ? { ...emp, name: editName, role: editRole } : emp
+    try {
+      await BookService.update(editId, editTitle, editAuthor);
+      setBooks(books.map(b => 
+        b.id === editId ? { ...b, title: editTitle, author: editAuthor } : b
       ));
-      setEditOpen(false); // Fecha o modal
+      setEditOpen(false);
+    } catch (error) {
+      console.error(error);
     }
+  };
+
+  const openEditModal = (book: Book) => {
+    setEditId(book.id);
+    setEditTitle(book.title);
+    setEditAuthor(book.author);
+    setEditOpen(true);
   };
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto', p: 4 }}>
-      <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
-        Team Directory
+      <Typography variant="h4" sx={{ fontWeight: 'bold' }} gutterBottom color="primary">
+        Book Library
       </Typography>
 
       {/* Formulário de Adicionar usando Paper do MUI */}
-      <Paper component="form" onSubmit={addEmployee} sx={{ p: 3, mb: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Paper component="form" onSubmit={addBook} sx={{ p: 3, mb: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField 
-          label="Employee Name" 
+          label="Book Title" 
           variant="outlined" 
-          value={name} 
-          onChange={(e) => setName(e.target.value)} 
+          value={title} 
+          onChange={(e) => setTitle(e.target.value)} 
           required 
         />
         <TextField 
-          label="Job Role (e.g. Designer)" 
+          label="Book Author" 
           variant="outlined" 
-          value={role} 
-          onChange={(e) => setRole(e.target.value)} 
+          value={author} 
+          onChange={(e) => setAuthor(e.target.value)} 
           required 
         />
         <Button type="submit" variant="contained" size="large">
-          Add Team Member
+          Add Book
         </Button>
       </Paper>
 
-      {/* Lista de Funcionários */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {employees.map((emp) => (
-          <Paper key={emp.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {books.length > 0 && books.map((Book) => (
+          <Paper key={Book.id} sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Typography variant="h6">{emp.name}</Typography>
-              <Typography variant="body2" color="text.secondary">{emp.role}</Typography>
+              <Typography variant="h6">{Book.title}</Typography>
+              <Typography variant="body2" color="text.secondary">{Book.author}</Typography>
             </Box>
             <Box>
               {/* Botão de Editar */}
-              <IconButton color="primary" onClick={() => openEditModal(emp)}>
+              <IconButton color="primary" onClick={() => openEditModal(Book)}>
                 <EditIcon />
               </IconButton>
               {/* Botão de Deletar */}
-              <IconButton color="error" onClick={() => deleteEmployee(emp.id)}>
+              <IconButton color="error" onClick={() => deleteBook(Book.id)}>
                 <DeleteIcon />
               </IconButton>
             </Box>
@@ -143,21 +125,21 @@ export default function Home() {
         ))}
       </Box>
 
-      {/* Modal de Edição (Dialog do MUI) */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Edit Employee</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+        <DialogTitle>Edit Book</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField 
-            label="Name" 
+            label="Title" 
             fullWidth 
-            value={editName} 
-            onChange={(e) => setEditName(e.target.value)} 
+            value={editTitle} 
+            onChange={(e) => setEditTitle(e.target.value)} 
+            margin="normal"
           />
           <TextField 
-            label="Role" 
+            label="Author" 
             fullWidth 
-            value={editRole} 
-            onChange={(e) => setEditRole(e.target.value)} 
+            value={editAuthor} 
+            onChange={(e) => setEditAuthor(e.target.value)} 
           />
         </DialogContent>
         <DialogActions>
