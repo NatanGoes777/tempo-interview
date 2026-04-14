@@ -121,7 +121,7 @@ export default function Home() {
                 <EditIcon />
               </IconButton>
               {/* Botão de Deletar */}
-              <IconButton color="error" onClick={() => deleteBook(Book.id)}>
+              <IconButton color="error" onClick={() => removeBook(Book.id)}>
                 <DeleteIcon />
               </IconButton>
             </Box>
